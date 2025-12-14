@@ -1,0 +1,25 @@
+* {
+    font-family: 'Fira Sans', sans-serif;
+    color: #FFFFFF;
+    box-sizing: border-box
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+
+    background-color: #3d2a3a;
+}
+
+.back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    text-decoration: none;
+
+    img {
+        width: 32px;
+    }
+}
