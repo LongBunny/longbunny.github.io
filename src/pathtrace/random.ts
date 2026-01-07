@@ -1,8 +1,10 @@
+
 export class Random {
-    static rand() {
+    static rand(): number {
         return Math.random();
     }
-    static range(min, max) {
+
+    static range(min: number, max: number): number {
         return min + (max - min) * this.rand();
     }
 }

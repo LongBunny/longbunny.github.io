@@ -1,11 +1,18 @@
-import { Vec3 } from "./vector.js";
-import { Ray } from "./ray.js";
+import {Vec3} from "./vector.js";
+import {Ray} from "./ray.js";
+
 export class Camera {
-    constructor(fov_deg, aspect) {
+    origin: Vec3;
+    horizontal: Vec3;
+    vertical: Vec3;
+    lower_left_corner: Vec3;
+
+    constructor(fov_deg: number, aspect: number) {
         const theta = (fov_deg * Math.PI) / 180.0;
         const h = Math.tan(theta / 2.0);
         const viewport_height = 2.0 * h;
         const viewport_width = aspect * viewport_height;
+
         this.origin = new Vec3(0, 0, 0);
         this.horizontal = new Vec3(viewport_width, 0, 0);
         this.vertical = new Vec3(0, -viewport_height, 0);
@@ -14,7 +21,8 @@ export class Camera {
             .sub(this.vertical.mul(0.5))
             .add(new Vec3(0, 0, 1));
     }
-    get_ray(u, v) {
+
+    get_ray(u: number, v: number): Ray {
         const dir = this.lower_left_corner
             .add(this.horizontal.mul(u))
             .add(this.vertical.mul(v))
