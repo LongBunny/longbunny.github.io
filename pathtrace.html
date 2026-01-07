@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LongBunny's Page - Path tracer</title>
+
+<link rel="stylesheet" href="/src/styles/main.css">
+<link rel="stylesheet" href="./src/styles/pathtrace.css">
+
+<body>
+
+<div class="renderer">
+    <div class="wrap">
+        <canvas id="render_canvas" width="800" height="600"></canvas>
+        <canvas id="debug_canvas" width="800" height="600"></canvas>
+    </div>
+</div>
+
+<div class="info">
+    <div class="info_container controls">
+        <div class="control_block">
+            <button id="render_btn">render</button>
+            <button onclick="download()">save</button>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Bounces:&nbsp;</span>
+                <span style="width: 20px;" id="bounces_value">10</span>
+                <input type="range" id="bounces_input" min="1" max="50" value="10">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Samples per pixels:&nbsp;</span>
+                <span style="width: 20px;" id="samples_value">10</span>
+                <input type="range" id="samples_input" min="1" max="200" value="10">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Exposure:&nbsp;</span>
+                <span style="width: 30px;" id="exposure_value">1.0</span>
+                <input type="range" id="exposure_input" min="0.1" max="5.0" value="1.0" step="0.1">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Tone map:&nbsp;</span>
+                <select id="tone_map_select">
+                    <option value="aces">ACES</option>
+                    <option value="reinhard">Reinhard</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Gamma correction</span>
+                <input type="checkbox" id="gamma_checkbox">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Debug</span>
+                <input type="checkbox" id="debug_checkbox">
+            </div>
+        </div>
+    </div>
+
+    <div class="info_container data">
+        <div class="ctrl">
+            <div class="label">Accumulated frames:&nbsp;</div>
+            <span id="accum_frame_span"></span>
+        </div>
+        <div class="ctrl">
+            <div class="label">Last frame time:&nbsp;</div>
+            <span id="last_render_time_span"></span>
+        </div>
+        <div class="ctrl">
+            <div class="label">Average frame time:&nbsp;</div>
+            <span id="average_render_time_span"></span>
+        </div>
+        <div class="ctrl">
+            <div class="label">Total render time:&nbsp;</div>
+            <span id="total_render_time_span"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Load compiled JS as a module -->
+<script type="module" src="./src/pathtrace/main.js"></script>
+
+<script>
+    function download() {
+        const link = document.createElement('a');
+        link.download = 'render.png';
+        link.href = render_canvas.toDataURL();
+        link.click();
+    }
+</script>
+</body>
+
+</html>
