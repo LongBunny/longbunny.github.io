@@ -7,7 +7,8 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 main: 'index.html',
-                fireworks: 'fireworks.html'
+                fireworks: 'fireworks.html',
+                pathtrace: 'pathtrace.html',
             },
         }
     },
