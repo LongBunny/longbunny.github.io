@@ -1,220 +1,36 @@
-import {Vec3} from './vector.js';
-import {Sphere} from './shape.js';
-import {Scene} from './scene.js';
-import {Lambertian, DiffuseLight, Metal, Dielectric} from "./material.js";
-import {path_trace, RenderSettings, ToneMap} from "./pathtracer.js";
-import {Camera} from "./camera.js";
+import {createCpuRenderer, CpuRendererStats} from './cpu.js';
+import {ToneMap} from "./pathtracer.js";
+import {check_webgpu, startWebGpuRenderer, WebGpuRendererController, WebGpuRendererStats} from "./webgpu.js";
 
 const render_canvas = document.getElementById('render_canvas') as HTMLCanvasElement;
 const debug_canvas = document.getElementById('debug_canvas') as HTMLCanvasElement;
-const ctx = render_canvas.getContext('2d') as CanvasRenderingContext2D;
-const debug_ctx = debug_canvas.getContext('2d') as CanvasRenderingContext2D;
+const webgpu_canvas = document.getElementById('webgpu_canvas') as HTMLCanvasElement;
 
-let debug = false;
-let last_render_y = 0.0;
-
-let last_frame_time = 0.0;
-let frame_time_sum = 0.0;
-let frame_done = true;
-
-const WIDTH = render_canvas.width;
-const HEIGHT = render_canvas.height;
-ctx.clearRect(0, 0, WIDTH, HEIGHT);
-
-const imageData = ctx.createImageData(WIDTH, HEIGHT);
-
-let frame_sample_count = 1;
-let accumulate_buffer = new Array<Vec3>(WIDTH * HEIGHT).fill(Vec3.zero());
-let out_buffer = new Array<Vec3>(WIDTH * HEIGHT).fill(Vec3.zero());
-reset_buffers();
-
-const pixels = imageData.data;
-
-const render_settings = RenderSettings.default();
-
-const camera = new Camera(90, WIDTH / HEIGHT);
-
-function render_gen() {
-    return render();
-}
-
-let gen = render_gen();
-
-addEventListener('keydown', (evt: KeyboardEvent) => {
-    if (evt.key !== 'r' || evt.ctrlKey)
-        return;
-
-    re_render();
+const cpu_renderer = createCpuRenderer({
+    renderCanvas: render_canvas,
+    debugCanvas: debug_canvas,
+    onFrameDone: (stats) => {
+        update_ui(stats);
+    }
 });
 
-function reset_buffers() {
-    accumulate_buffer = accumulate_buffer.map(() => Vec3.zero());
-    out_buffer = out_buffer.map(() => Vec3.zero());
+enum Renderer {
+    CPU = 'CPU',
+    WebGPU = 'WebGPU',
 }
 
-function re_render() {
-    reset_ui();
-    reset_buffers();
-    frame_sample_count = 1;
-    pixels.fill(0.0);
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    gen = render_gen();
-}
+const DEFAULT_RENDERER: Renderer = Renderer.CPU;
+let active_renderer: Renderer = Renderer.CPU;
+let webgpu_controller: WebGpuRendererController | null = null;
 
-
-function draw() {
-    const start = performance.now();
-    const budget = 14;
-
-    while (performance.now() - start < budget) {
-        if (gen.next().done) {
-
-        }
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    if (debug) {
-        debug_ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        debug_ctx.fillStyle = `red`;
-        debug_ctx.strokeStyle = `rgba(255, 0, 0, 0.5)`;
-        debug_ctx.beginPath();
-        debug_ctx.moveTo(0, last_render_y);
-        debug_ctx.lineTo(WIDTH, last_render_y);
-        debug_ctx.stroke();
-    }
-
-    if (frame_done) {
-        update_ui();
-        frame_done = false;
-    }
-
-    requestAnimationFrame(draw);
-}
-
-const scene = new Scene(
-    [
-        new Sphere(new Vec3(0.0, -201.0, 1.0), 200.0, new Lambertian(new Vec3(0.8, 0.8, 0.8))),
-        new Sphere(new Vec3(-30.0, 0.0, 55.0), 25.0, new Lambertian(new Vec3(0.3, 0.4, 0.2).srgb_to_linear())),
-
-        new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Dielectric(1.52)),
-        new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
-        new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
-
-        new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
-    ]
-);
-
-function* render() {
-    console.log(`rendering: bounces = ${render_settings.bounces}, samples = ${render_settings.samples}`);
-    while (true) {
-        const start = performance.now();
-        for (let y = 0; y < HEIGHT; y++) {
-            if (debug) {
-                last_render_y = y;
-            }
-
-            for (let x = 0; x < WIDTH; x++) {
-                const i = (y * WIDTH + x);
-
-                const color = path_trace(x, y, WIDTH, HEIGHT, camera, scene, render_settings);
-
-                accumulate_buffer[i] = accumulate_buffer[i].add(color);
-                let out_color = accumulate_buffer[i].div(frame_sample_count);
-
-                if (debug) {
-                    // debug middle pixel
-                    if (x === Math.floor(WIDTH / 2) && y === Math.floor(HEIGHT / 2))
-                        console.log(`sample: ${frame_sample_count}, color: ${out_color}`)
-                }
-
-                out_color = out_color.mul(render_settings.exposure);
-                out_color = tone_map_color(out_color, render_settings.tone_map);
-
-                if (render_settings.gamma_correction) {
-                    const inverse = 1.0 / 2.2;
-                    out_color = new Vec3(
-                        Math.pow(out_color.x, inverse),
-                        Math.pow(out_color.y, inverse),
-                        Math.pow(out_color.z, inverse)
-                    );
-                }
-
-                out_color = out_color.clamp01();
-
-                const pixels_idx = (y * WIDTH + x) * 4;
-                pixels[pixels_idx + 0] = out_color.x * 255;
-                pixels[pixels_idx + 1] = out_color.y * 255;
-                pixels[pixels_idx + 2] = out_color.z * 255;
-                pixels[pixels_idx + 3] = 255;
-
-                yield;
-            }
-        }
-
-        // for (let y = 1; y < HEIGHT - 1; y++) {
-        //     for (let x = 1; x < WIDTH - 1; x++) {
-        //
-        //         let sum = Vec3.zero();
-        //         for (let dy = -1; dy <= 1; dy++) {
-        //             for (let dx = -1; dx <= 1; dx++) {
-        //                 const di = (y * WIDTH + x) + dx + dy * WIDTH;
-        //                 const color = accumulate_buffer[di];
-        //                 sum = sum.add(color);
-        //             }
-        //         }
-        //
-        //         sum = sum.div(9.0);
-        //
-        //         const pixels_idx = (y * WIDTH + x) * 4;
-        //         pixels[pixels_idx + 0] = sum.x * 255;
-        //         pixels[pixels_idx + 1] = sum.y * 255;
-        //         pixels[pixels_idx + 2] = sum.z * 255;
-        //         pixels[pixels_idx + 3] = 255;
-        //     }
-        // }
-
-
-        frame_done = true;
-        frame_sample_count += 1;
-
-        last_frame_time = performance.now() - start;
-        frame_time_sum += last_frame_time;
-    }
-}
-
-requestAnimationFrame(draw);
-
-function tone_map_color(color: Vec3, tone_map: ToneMap): Vec3 {
-    switch (tone_map) {
-        case 'reinhard':
-            return new Vec3(
-                color.x / (1.0 + color.x),
-                color.y / (1.0 + color.y),
-                color.z / (1.0 + color.z)
-            );
-        case 'aces':
-            return aces_filmic(color);
-        case 'none':
-        default:
-            return color;
-    }
-}
-
-function aces_filmic(color: Vec3): Vec3 {
-    const a = 2.51;
-    const b = 0.03;
-    const c = 2.43;
-    const d = 0.59;
-    const e = 0.14;
-
-    const filmic = (x: number) => (x * (a * x + b)) / (x * (c * x + d) + e);
-    return new Vec3(filmic(color.x), filmic(color.y), filmic(color.z));
-}
-
+const render_settings = cpu_renderer.getSettings();
 
 // ui
 
 const render_btn = document.getElementById('render_btn') as HTMLButtonElement;
+const clear_btn = document.getElementById('clear_btn') as HTMLButtonElement;
+const renderer_select = document.getElementById('renderer_select') as HTMLSelectElement;
+const webgpu_option = document.getElementById('webgpu_option') as HTMLOptionElement;
 
 const bounces_input = document.getElementById('bounces_input') as HTMLInputElement;
 const bounces_value = document.getElementById('bounces_value') as HTMLSpanElement;
@@ -231,10 +47,38 @@ const gamma_checkbox = document.getElementById('gamma_checkbox') as HTMLInputEle
 
 const debug_checkbox = document.getElementById('debug_checkbox') as HTMLInputElement;
 
+const webgpu_fps_input = document.getElementById('webgpu_fps_input') as HTMLInputElement;
+const webgpu_fps_value = document.getElementById('webgpu_fps_value') as HTMLSpanElement;
+
 const accum_frame_span = document.getElementById('accum_frame_span') as HTMLSpanElement;
 const last_render_time_span = document.getElementById('last_render_time_span') as HTMLSpanElement;
 const average_render_time_span = document.getElementById('average_render_time_span') as HTMLSpanElement;
 const total_render_time_span = document.getElementById('total_render_time_span') as HTMLSpanElement;
+
+let debug_enabled = false;
+let webgpu_max_fps = 30;
+const webgpu_samples_per_pixel = 20;
+const webgpu_bounces = 20;
+const webgpu_exposure = 1.0;
+const webgpu_tone_map: ToneMap = 'aces';
+const webgpu_gamma_correction = true;
+let renderer_running = false;
+
+const webgpu_supported = check_webgpu();
+if (!webgpu_supported) {
+    webgpu_option.disabled = true;
+}
+
+renderer_select.addEventListener('change', () => {
+    void switch_renderer(renderer_select.value as Renderer);
+});
+
+addEventListener('keydown', (evt: KeyboardEvent) => {
+    if (evt.key !== 'r' || evt.ctrlKey)
+        return;
+
+    re_render();
+});
 
 gamma_checkbox.addEventListener('change', () => {
     render_settings.gamma_correction = gamma_checkbox.checked;
@@ -243,11 +87,14 @@ gamma_checkbox.addEventListener('change', () => {
 
 
 debug_checkbox.addEventListener('change', () => {
-    debug = debug_checkbox.checked;
-    debug_ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    debug_enabled = debug_checkbox.checked;
+    if (active_renderer === 'CPU') {
+        cpu_renderer.setDebug(debug_enabled);
+    }
 });
 
-render_btn.addEventListener('click', re_render);
+render_btn.addEventListener('click', () => void toggle_render());
+clear_btn.addEventListener('click', () => clear_render());
 
 bounces_input.addEventListener('change', () => {
     render_settings.bounces = parseInt(bounces_input.value);
@@ -272,12 +119,141 @@ tone_map_select.addEventListener('change', () => {
     re_render();
 });
 
+webgpu_fps_input.addEventListener('change', () => {
+    webgpu_max_fps = parseInt(webgpu_fps_input.value);
+    webgpu_controller?.setMaxFps(webgpu_max_fps);
+});
+webgpu_fps_input.addEventListener('input', () => webgpu_fps_value.innerText = webgpu_fps_input.value);
 
 reset_ui();
+renderer_select.value = DEFAULT_RENDERER;
+update_controls();
+show_cpu_canvases();
+start_default_renderer(DEFAULT_RENDERER);
+update_render_button();
+
+function start_default_renderer(renderer: Renderer) {
+    if (renderer === Renderer.CPU) {
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+    void switch_renderer(renderer);
+}
+
+async function switch_renderer(next: Renderer) {
+    if (next === active_renderer) return;
+
+    stop_active_renderer();
+    active_renderer = next;
+    update_controls();
+
+    if (next === Renderer.CPU) {
+        show_cpu_canvases();
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        cpu_renderer.reRender();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+
+    if (!webgpu_supported) {
+        active_renderer = Renderer.CPU;
+        renderer_select.value = Renderer.CPU;
+        update_controls();
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+
+    show_webgpu_canvas();
+    clear_debug_overlay();
+    reset_ui();
+
+    try {
+        await start_webgpu_renderer();
+        renderer_running = true;
+        update_render_button();
+    } catch (err) {
+        console.error(err);
+        renderer_select.value = Renderer.CPU;
+        active_renderer = Renderer.CPU;
+        update_controls();
+        show_cpu_canvases();
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+    }
+}
+
+function re_render() {
+    if (active_renderer !== Renderer.CPU) return;
+    reset_ui();
+    cpu_renderer.start();
+    cpu_renderer.reRender();
+    renderer_running = true;
+    update_render_button();
+}
+
+function stop_active_renderer() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.stop();
+    } else {
+        webgpu_controller?.stop();
+        webgpu_controller = null;
+    }
+    renderer_running = false;
+    update_render_button();
+}
+
+function update_controls() {
+    const cpu_controls_enabled = active_renderer === Renderer.CPU;
+    const webgpu_controls_enabled = active_renderer === Renderer.WebGPU;
+    render_btn.disabled = false;
+    bounces_input.disabled = !cpu_controls_enabled;
+    samples_input.disabled = !cpu_controls_enabled;
+    exposure_input.disabled = !cpu_controls_enabled;
+    tone_map_select.disabled = !cpu_controls_enabled;
+    gamma_checkbox.disabled = !cpu_controls_enabled;
+    debug_checkbox.disabled = !cpu_controls_enabled;
+    webgpu_fps_input.disabled = !webgpu_controls_enabled;
+
+    if (!cpu_controls_enabled) {
+        cpu_renderer.setDebug(false);
+        reset_ui();
+    }
+
+    if (webgpu_controls_enabled) {
+        apply_webgpu_ui_defaults();
+    }
+}
+
+function show_cpu_canvases() {
+    render_canvas.style.display = 'block';
+    debug_canvas.style.display = 'block';
+    webgpu_canvas.style.display = 'none';
+}
+
+function show_webgpu_canvas() {
+    render_canvas.style.display = 'none';
+    debug_canvas.style.display = 'none';
+    webgpu_canvas.style.display = 'block';
+}
+
+function clear_debug_overlay() {
+    const debug_ctx = debug_canvas.getContext('2d');
+    debug_ctx?.clearRect(0, 0, debug_canvas.width, debug_canvas.height);
+}
 
 function reset_ui() {
     gamma_checkbox.checked = render_settings.gamma_correction;
-    debug_checkbox.checked = debug;
+    debug_checkbox.checked = debug_enabled;
 
     bounces_input.value = '' + render_settings.bounces;
     bounces_value.innerText = bounces_input.value;
@@ -290,21 +266,125 @@ function reset_ui() {
 
     tone_map_select.value = render_settings.tone_map;
 
-    frame_time_sum = 0.0;
+    renderer_select.value = active_renderer;
+
+    webgpu_fps_input.value = '' + webgpu_max_fps;
+    webgpu_fps_value.innerText = webgpu_fps_input.value;
+
+    accum_frame_span.innerText = `0`;
+    last_render_time_span.innerText = `-`;
+    average_render_time_span.innerText = `-`;
+    total_render_time_span.innerText = `-`;
+
+    if (active_renderer === Renderer.WebGPU) {
+        apply_webgpu_ui_defaults();
+    }
+}
+
+function reset_stats_ui() {
     accum_frame_span.innerText = `0`;
     last_render_time_span.innerText = `-`;
     average_render_time_span.innerText = `-`;
     total_render_time_span.innerText = `-`;
 }
 
-function update_ui() {
-    if (frame_sample_count > 1) {
-        last_render_time_span.innerText = `${(last_frame_time / 1000).toFixed(3)}s`;
-        average_render_time_span.innerText = `${((frame_time_sum / (frame_sample_count - 1)) / 1000).toFixed(3)}s`;
+function update_ui(stats: CpuRendererStats) {
+    if (stats.frameSampleCount > 1) {
+        last_render_time_span.innerText = `${(stats.lastFrameTimeMs / 1000).toFixed(3)}s`;
+        average_render_time_span.innerText = `${((stats.frameTimeSumMs / (stats.frameSampleCount - 1)) / 1000).toFixed(3)}s`;
     } else {
         last_render_time_span.innerText = `-`;
         average_render_time_span.innerText = `-`;
     }
-    total_render_time_span.innerText = `${(frame_time_sum / 1000).toFixed(3)}s`;
-    accum_frame_span.innerText = `${frame_sample_count - 1}`;
+    total_render_time_span.innerText = `${(stats.frameTimeSumMs / 1000).toFixed(3)}s`;
+    accum_frame_span.innerText = `${stats.frameSampleCount - 1}`;
+}
+
+function update_webgpu_ui(stats: WebGpuRendererStats) {
+    update_ui(stats);
+}
+
+function apply_webgpu_ui_defaults() {
+    bounces_input.value = '' + webgpu_bounces;
+    bounces_value.innerText = bounces_input.value;
+    samples_input.value = '' + webgpu_samples_per_pixel;
+    samples_value.innerText = samples_input.value;
+    exposure_input.value = '' + webgpu_exposure;
+    exposure_value.innerText = exposure_input.value;
+    tone_map_select.value = webgpu_tone_map;
+    gamma_checkbox.checked = webgpu_gamma_correction;
+}
+
+async function toggle_render() {
+    if (renderer_running) {
+        pause_active_renderer();
+        return;
+    }
+    await resume_active_renderer();
+}
+
+async function resume_active_renderer() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+    if (!webgpu_supported) {
+        active_renderer = Renderer.CPU;
+        renderer_select.value = Renderer.CPU;
+        update_controls();
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+    show_webgpu_canvas();
+    clear_debug_overlay();
+    try {
+        if (webgpu_controller) {
+            webgpu_controller.resume();
+        } else {
+            await start_webgpu_renderer();
+        }
+        renderer_running = true;
+        update_render_button();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function start_webgpu_renderer() {
+    webgpu_controller = await startWebGpuRenderer(webgpu_canvas, {
+        maxFps: webgpu_max_fps,
+        onFrameDone: (stats) => update_webgpu_ui(stats)
+    });
+}
+
+function update_render_button() {
+    render_btn.innerText = renderer_running ? 'stop' : 'start';
+}
+
+function clear_render() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.reRender();
+        if (renderer_running) {
+            cpu_renderer.start();
+        }
+        reset_stats_ui();
+        return;
+    }
+    webgpu_controller?.clear();
+    reset_stats_ui();
+}
+
+function pause_active_renderer() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.stop();
+    } else {
+        webgpu_controller?.pause();
+    }
+    renderer_running = false;
+    update_render_button();
 }

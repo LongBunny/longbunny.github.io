@@ -5,8 +5,34 @@
 }
 
 button {
-    color: #202020;
+    min-width: 80px;
+    color: #e9e9e9;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
+
+button:hover {
+    background: #333333;
+    border-color: #4a4a4a;
+}
+
+button:active {
+    background: #242424;
+    transform: translateY(1px);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 
 html,
 body {
@@ -27,10 +53,10 @@ body {
     .wrap {
         position: relative;
         width: 800px;
-        height: 600px;
+        height: 500px;
     }
 
-    #render_canvas, #debug_canvas {
+    #render_canvas, #debug_canvas, #webgpu_canvas {
         position: absolute;
         left: 0;
         top: 0;
@@ -39,6 +65,10 @@ body {
     #debug_canvas {
         pointer-events: none;
     }
+}
+
+#webgpu_canvas {
+    display: none;
 }
 
 .info {
@@ -90,4 +120,6 @@ select {
     /*color: #202020;*/
 }
 
-select
+option[disabled] {
+    color: #808080;
+}
