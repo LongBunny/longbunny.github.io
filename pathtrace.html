@@ -6,9 +6,9 @@
 <title>LongBunny's Page - Path tracer</title>
 
 
-<script type="module" crossorigin src="/assets/pathtrace-B_my273Z.js"></script>
+<script type="module" crossorigin src="/assets/pathtrace-vPu3dpoR.js"></script>
 <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-<link rel="stylesheet" crossorigin href="/assets/pathtrace-QiIykIaQ.css">
+<link rel="stylesheet" crossorigin href="/assets/pathtrace-CHb50ve0.css">
 <link rel="stylesheet" crossorigin href="/assets/main-DAaC-EQb.css">
 
 <body>
@@ -66,16 +66,6 @@
 
         <div class="control_block">
             <div class="ctrl">
-                <span class="label">Renderer:&nbsp;</span>
-                <select id="renderer_select">
-                    <option value="CPU">CPU</option>
-                    <option id="webgpu_option" value="WebGPU">WebGPU</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="control_block">
-            <div class="ctrl">
                 <span class="label">WebGPU max FPS:&nbsp;</span>
                 <span style="width: 20px;" id="webgpu_fps_value">30</span>
                 <input type="range" id="webgpu_fps_input" min="5" max="60" value="30">
@@ -96,6 +86,25 @@
             </div>
         </div>
     </div>
+
+    <div class="info_container">
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Renderer:&nbsp;</span>
+                <div class="renderer_group" role="radiogroup" aria-label="Renderer">
+                    <label class="radio_option">
+                        <input type="radio" name="renderer" id="renderer_cpu" value="CPU">
+                        <span>CPU</span>
+                    </label>
+                    <label class="radio_option">
+                        <input type="radio" name="renderer" id="renderer_webgpu" value="WebGPU">
+                        <span>WebGPU</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <div class="info_container data">
         <div class="ctrl">
@@ -119,10 +128,15 @@
 
 
 <script>
+    function getActiveRenderer() {
+        const checked = document.querySelector('input[name="renderer"]:checked');
+        return checked ? checked.value : 'CPU';
+    }
+
     function download() {
         const link = document.createElement('a');
         link.download = 'render.png';
-        if (renderer_select.value === 'CPU') {
+        if (getActiveRenderer() === 'CPU') {
             link.href = render_canvas.toDataURL();
         } else {
             link.href = webgpu_canvas.toDataURL();
