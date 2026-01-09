@@ -6,24 +6,26 @@
 <title>LongBunny's Page - Path tracer</title>
 
 
-<script type="module" crossorigin src="/assets/pathtrace-BET-7lMH.js"></script>
+<script type="module" crossorigin src="/assets/pathtrace-B_my273Z.js"></script>
 <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-<link rel="stylesheet" crossorigin href="/assets/pathtrace-ERMpoG_u.css">
+<link rel="stylesheet" crossorigin href="/assets/pathtrace-QiIykIaQ.css">
 <link rel="stylesheet" crossorigin href="/assets/main-DAaC-EQb.css">
 
 <body>
 
 <div class="renderer">
     <div class="wrap">
-        <canvas id="render_canvas" width="800" height="600"></canvas>
-        <canvas id="debug_canvas" width="800" height="600"></canvas>
+        <canvas id="render_canvas" width="700" height="500"></canvas>
+        <canvas id="debug_canvas" width="700" height="500"></canvas>
+        <canvas id="webgpu_canvas" width="700" height="500"></canvas>
     </div>
 </div>
 
 <div class="info">
     <div class="info_container controls">
         <div class="control_block">
-            <button id="render_btn">render</button>
+            <button id="render_btn">start</button>
+            <button id="clear_btn">clear</button>
             <button onclick="download()">save</button>
         </div>
 
@@ -37,7 +39,7 @@
 
         <div class="control_block">
             <div class="ctrl">
-                <span class="label">Samples per pixels:&nbsp;</span>
+                <span class="label">Samples per pixel:&nbsp;</span>
                 <span style="width: 20px;" id="samples_value">10</span>
                 <input type="range" id="samples_input" min="1" max="200" value="10">
             </div>
@@ -46,7 +48,7 @@
         <div class="control_block">
             <div class="ctrl">
                 <span class="label">Exposure:&nbsp;</span>
-                <span style="width: 30px;" id="exposure_value">1.0</span>
+                <span style="width: 20px;" id="exposure_value">1.0</span>
                 <input type="range" id="exposure_input" min="0.1" max="5.0" value="1.0" step="0.1">
             </div>
         </div>
@@ -59,6 +61,24 @@
                     <option value="reinhard">Reinhard</option>
                     <option value="none">None</option>
                 </select>
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Renderer:&nbsp;</span>
+                <select id="renderer_select">
+                    <option value="CPU">CPU</option>
+                    <option id="webgpu_option" value="WebGPU">WebGPU</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">WebGPU max FPS:&nbsp;</span>
+                <span style="width: 20px;" id="webgpu_fps_value">30</span>
+                <input type="range" id="webgpu_fps_input" min="5" max="60" value="30">
             </div>
         </div>
 
@@ -102,7 +122,11 @@
     function download() {
         const link = document.createElement('a');
         link.download = 'render.png';
-        link.href = render_canvas.toDataURL();
+        if (renderer_select.value === 'CPU') {
+            link.href = render_canvas.toDataURL();
+        } else {
+            link.href = webgpu_canvas.toDataURL();
+        }
         link.click();
     }
 </script>
