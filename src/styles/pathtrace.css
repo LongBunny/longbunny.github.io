@@ -123,3 +123,23 @@ select {
 option[disabled] {
     color: #808080;
 }
+
+.renderer_group {
+    display: flex;
+    gap: 12px;
+}
+
+.radio_option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.radio_option input {
+    margin: 0;
+}
+
+.radio_option input:disabled + span {
+    color: #808080;
+}

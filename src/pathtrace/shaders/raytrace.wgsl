@@ -6,7 +6,7 @@ struct Params {
 }
 
 const PI = 3.14159265359;
-const F32_MAX = 3.4028235e38;
+const F32_MAX = 3.4028235e37;
 const EPS = 1.0e-4;
 
 const SAMPLES_COUNT = 20;
@@ -479,8 +479,8 @@ fn near_zero(v: vec3<f32>) -> bool {
 }
 
 fn hex_to_vec3(hex: u32) -> vec3<f32> {
-    let r = f32((hex >> 8 * 2) & 0xFF) / 255.0;
-    let g = f32((hex >> 8 * 1) & 0xFF) / 255.0;
-    let b = f32((hex >> 8 * 0) & 0xFF) / 255.0;
+    let r = f32((hex >> (8 * 2)) & 0xFF) / 255.0;
+    let g = f32((hex >> (8 * 1)) & 0xFF) / 255.0;
+    let b = f32((hex >> (8 * 0)) & 0xFF) / 255.0;
     return vec3<f32>(r, g, b);
 }

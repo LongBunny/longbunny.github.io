@@ -29,8 +29,9 @@ const render_settings = cpu_renderer.getSettings();
 
 const render_btn = document.getElementById('render_btn') as HTMLButtonElement;
 const clear_btn = document.getElementById('clear_btn') as HTMLButtonElement;
-const renderer_select = document.getElementById('renderer_select') as HTMLSelectElement;
-const webgpu_option = document.getElementById('webgpu_option') as HTMLOptionElement;
+const renderer_inputs = document.querySelectorAll('input[name="renderer"]') as NodeListOf<HTMLInputElement>;
+const renderer_cpu_radio = document.getElementById('renderer_cpu') as HTMLInputElement;
+const renderer_webgpu_radio = document.getElementById('renderer_webgpu') as HTMLInputElement;
 
 const bounces_input = document.getElementById('bounces_input') as HTMLInputElement;
 const bounces_value = document.getElementById('bounces_value') as HTMLSpanElement;
@@ -66,11 +67,15 @@ let renderer_running = false;
 
 const webgpu_supported = check_webgpu();
 if (!webgpu_supported) {
-    webgpu_option.disabled = true;
+    renderer_webgpu_radio.disabled = true;
 }
 
-renderer_select.addEventListener('change', () => {
-    void switch_renderer(renderer_select.value as Renderer);
+renderer_inputs.forEach((input) => {
+    input.addEventListener('change', () => {
+        if (input.checked) {
+            void switch_renderer(input.value as Renderer);
+        }
+    });
 });
 
 addEventListener('keydown', (evt: KeyboardEvent) => {
@@ -126,7 +131,7 @@ webgpu_fps_input.addEventListener('change', () => {
 webgpu_fps_input.addEventListener('input', () => webgpu_fps_value.innerText = webgpu_fps_input.value);
 
 reset_ui();
-renderer_select.value = DEFAULT_RENDERER;
+set_renderer_radio(DEFAULT_RENDERER);
 update_controls();
 show_cpu_canvases();
 start_default_renderer(DEFAULT_RENDERER);
@@ -162,7 +167,7 @@ async function switch_renderer(next: Renderer) {
 
     if (!webgpu_supported) {
         active_renderer = Renderer.CPU;
-        renderer_select.value = Renderer.CPU;
+        set_renderer_radio(Renderer.CPU);
         update_controls();
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
@@ -181,7 +186,7 @@ async function switch_renderer(next: Renderer) {
         update_render_button();
     } catch (err) {
         console.error(err);
-        renderer_select.value = Renderer.CPU;
+        set_renderer_radio(Renderer.CPU);
         active_renderer = Renderer.CPU;
         update_controls();
         show_cpu_canvases();
@@ -266,7 +271,7 @@ function reset_ui() {
 
     tone_map_select.value = render_settings.tone_map;
 
-    renderer_select.value = active_renderer;
+    set_renderer_radio(active_renderer);
 
     webgpu_fps_input.value = '' + webgpu_max_fps;
     webgpu_fps_value.innerText = webgpu_fps_input.value;
@@ -332,7 +337,7 @@ async function resume_active_renderer() {
     }
     if (!webgpu_supported) {
         active_renderer = Renderer.CPU;
-        renderer_select.value = Renderer.CPU;
+        set_renderer_radio(Renderer.CPU);
         update_controls();
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
@@ -353,6 +358,11 @@ async function resume_active_renderer() {
     } catch (err) {
         console.error(err);
     }
+}
+
+function set_renderer_radio(renderer: Renderer) {
+    renderer_cpu_radio.checked = renderer === Renderer.CPU;
+    renderer_webgpu_radio.checked = renderer === Renderer.WebGPU;
 }
 
 async function start_webgpu_renderer() {
