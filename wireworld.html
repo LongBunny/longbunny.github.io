@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="/src/wireworld/style.css">
+    <link rel="stylesheet" href="/src/styles/main.css">
+    <title>wireworld</title>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<a href="/" class="back-button">
+    <img src="/src/assets/arrow_back.svg" alt="back">
+</a>
+
+<div class="controls">
+    Controls:<br>
+    1: Conductor, 2: Head, 3: Tail<br>
+    left-click: add cell, right-click: clear cell<br>
+    space: toggle simulation, c: clear grid, s: save to local storage, l: load from local storage
+</div>
+<script type="module" src="/src/wireworld/main.ts"></script>
+</body>
+</html>

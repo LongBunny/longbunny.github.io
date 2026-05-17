@@ -21,6 +21,9 @@
     "url": "https://github.com/LongBunny/BunnyPage/issues"
   },
   "homepage": "https://github.com/LongBunny/BunnyPage#readme",
+  "dependencies": {
+    "bunny-common": "file:../../libs/bunny-common"
+  },
   "devDependencies": {
     "@types/node": "^25.0.2",
     "@webgpu/types": "^0.1.68",
